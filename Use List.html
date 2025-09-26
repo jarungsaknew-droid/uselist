@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request for Glass</title>
+    <style>
+        /* --- CSS ทั้งหมด --- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .form-container {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 450px;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+        select,
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: #fafafa;
+        }
+        select:disabled {
+            background-color: #eee;
+            cursor: not-allowed;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        /* สถานะ Loading ของปุ่ม */
+        button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: background-color 0.4s ease;
+        }
+        .popup-overlay.active {
+            display: flex;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        .popup-content {
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            transform: translateY(-30px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            width: 90%;
+            max-width: 400px;
+        }
+        .popup-overlay.active .popup-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .checkmark-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            animation: popup-scale 0.4s ease-out forwards;
+        }
+        .checkmark-icon {
+            width: 25px;
+            height: 45px;
+            border: solid white;
+            border-width: 0 8px 8px 0;
+            transform: rotate(45deg);
+            opacity: 0;
+            animation: draw-check 0.3s 0.2s ease-out forwards;
+        }
+        .error-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #f44336;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            animation: popup-scale 0.4s ease-out forwards;
+            color: white;
+            font-size: 50px;
+            font-weight: bold;
+            line-height: 80px;
+        }
+        @keyframes popup-scale {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes draw-check {
+            0% { opacity: 0; height: 0; }
+            100% { opacity: 1; height: 45px; }
+        }
+        #popup-details, #error-details {
+            font-size: 1.1rem;
+            color: #333;
+            line-height: 1.6;
+            text-align: left; 
+            margin-top: 1rem;
+        }
+        #stock-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+            text-align: left;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <h2>การขอใช้กระจก</h2>
+        
+        <button type="button" id="refresh-button" style="width: auto; padding: 5px 10px; font-size: 0.8rem; background-color: #6c757d; margin-bottom: 1rem;">🔄 อัปเดตข้อมูลล่าสุด</button>
+        
+        <form id="glass-form">
+            <div class="form-group">
+                <label for="glass-type">ชนิดกระจก :</label>
+                <select id="glass-type" name="glass_type" required>
+                    <option value="">-- กำลังโหลดข้อมูล... --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="thickness">ความหนา ( มม. ) :</label>
+                <select id="thickness" name="thickness" required disabled>
+                    <option value="">-- กรุณาเลือกชนิดกระจกก่อน --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="glass-size">ขนาดกระจก ( นิ้ว ) :</label>
+                <select id="glass-size" name="glass_size" required disabled>
+                    <option value="">-- กรุณาเลือกความหนาก่อน --</option>
+                </select>
+            </div>
+            <div id="stock-info">
+                จำนวนคงเหลือ: <span id="stock-count">N/A</span> แผ่น
+            </div>
+            <div class="form-group">
+                <label for="quantity">จำนวนแผ่น:</label>
+                <input type="number" id="quantity" name="quantity" min="1" value="1" required disabled>
+            </div>
+            <button type="submit" id="submit-button" disabled>ส่งข้อมูล</button>
+            <small id="form-message" style="text-align: center; display: block; margin-top: 10px; color: #888;">
+                (ระบบนี้เชื่อมต่อฐานข้อมูลจริง)
+            </small>
+        </form>
+    </div>
+
+    <div id="success-popup" class="popup-overlay">
+        <div class="popup-content">
+            <div class="checkmark-container">
+                <div class="checkmark-icon"></div>
+            </div>
+            <h3>บันทึกข้อมูลสำเร็จ!</h3>
+            <div id="popup-details"></div>
+            <p style="font-size: 0.8rem; color: #999; margin-top: 15px;">
+                ข้อมูลได้ถูกอัปเดตใน Google Sheet แล้ว
+            </p>
+        </div>
+    </div>
+    
+    <div id="error-popup" class="popup-overlay">
+        <div class="popup-content">
+            <div class="error-container">!</div>
+            <h3>เกิดข้อผิดพลาด!</h3>
+            <div id="error-details" style="text-align: center;"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 1. ตั้งค่าตัวแปรหลัก ---
+        // !!! วาง URL ของ WEB APP ที่คุณคัดลอกมาจาก "ส่วนที่ 2" ตรงนี้ !!!
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzJ5Aq_qAhUHvc4efXgVPlpl8zWGoBSh8mr99ln8DQ_NiMM1taHfjTXfH6JIGAhjcL4/exec'; 
+
+        let sheetData = []; // ที่เก็บข้อมูลสต็อก (จะมาจาก GAS)
+
+        // ตัวแปร Element (เหมือนเดิม)
+        const glassForm = document.getElementById('glass-form');
+        const selectType = document.getElementById('glass-type');
+        const selectThickness = document.getElementById('thickness');
+        const selectSize = document.getElementById('glass-size');
+        const inputQuantity = document.getElementById('quantity');
+        const stockInfoDiv = document.getElementById('stock-info');
+        const stockCountSpan = document.getElementById('stock-count');
+        const submitButton = document.getElementById('submit-button');
+        const successPopup = document.getElementById('success-popup');
+        const errorPopup = document.getElementById('error-popup');
+        const popupDetails = document.getElementById('popup-details');
+        const errorDetails = document.getElementById('error-details');
+        const refreshButton = document.getElementById('refresh-button');
+        const formMessage = document.getElementById('form-message');
+
+
+        // --- 2. ฟังก์ชันเริ่มทำงาน ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (WEB_APP_URL.includes('***')) {
+                alert('กรุณาใส่ Web App URL ในโค้ด JavaScript บรรทัดที่ 216 ก่อนครับ');
+                selectType.innerHTML = '<option value="">-- ยังไม่ได้ตั้งค่า Web App URL --</option>';
+                return;
+            }
+            fetchData();
+        });
+
+        refreshButton.addEventListener('click', () => {
+            refreshButton.disabled = true;
+            refreshButton.textContent = '🔄 กำลังอัปเดต...';
+            
+            selectType.innerHTML = '<option value="">-- กำลังโหลดข้อมูลใหม่... --</option>';
+            resetDropdown(selectThickness, '-- กรุณาเลือกชนิดกระจกก่อน --');
+            resetDropdown(selectSize, '-- กรุณาเลือกความหนาก่อน --');
+            resetStockInfo();
+            
+            fetchData().finally(() => {
+                 refreshButton.disabled = false;
+                 refreshButton.textContent = '🔄 อัปเดตข้อมูลล่าสุด';
+            });
+        });
+
+        // --- 4. ฟังก์ชันดึงข้อมูลจาก Google Apps Script (GET) ---
+        async function fetchData() {
+            try {
+                const response = await fetch(WEB_APP_URL);
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+                
+                const result = await response.json(); // แปลง JSON ที่ได้จาก GAS
+                
+                if (result.status === 'success') {
+                    sheetData = result.data; 
+                    populateTypeDropdown(); 
+                } else {
+                    throw new Error(result.message); 
+                }
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                selectType.innerHTML = `<option value="">-- เกิดข้อผิดพลาด: ${error.message} --</option>`;
+            }
+        }
+
+        // --- 5. ฟังก์ชันสร้าง Dropdowns ---
+        function populateTypeDropdown() {
+            const types = [...new Set(sheetData.map(item => item.type))];
+            selectType.innerHTML = '<option value="">-- กรุณาเลือก --</option>'; 
+            types.forEach(type => {
+                if (type) {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    selectType.appendChild(option);
+                }
+            });
+            selectType.disabled = false; 
+        }
+
+        selectType.addEventListener('change', () => {
+            const selectedType = selectType.value;
+            resetDropdown(selectThickness, '-- กรุณาเลือกความหนาก่อน --');
+            resetDropdown(selectSize, '-- กรุณาเลือกความหนาก่อน --');
+            resetStockInfo();
+            
+            if (selectedType) {
+                const filteredData = sheetData.filter(item => item.type === selectedType);
+                const thicknesses = [...new Set(filteredData.map(item => item.thickness))];
+                selectThickness.innerHTML = '<option value="">-- กรุณาเลือก --</option>';
+                
+                thicknesses.sort((a, b) => {
+                    const numA = parseFloat(a);
+                    const numB = parseFloat(b);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+                    return String(a).localeCompare(String(b));
+                });
+
+                thicknesses.forEach(thickness => {
+                    if (thickness) {
+                        const option = document.createElement('option');
+                        option.value = thickness;
+                        option.textContent = thickness;
+                        selectThickness.appendChild(option);
+                    }
+                });
+                selectThickness.disabled = false;
+            }
+        });
+
+        // (แก้ปัญหา "ขนาดไม่ขึ้น")
+        selectThickness.addEventListener('change', () => {
+            const selectedType = selectType.value;
+            const selectedThickness = selectThickness.value; 
+            resetDropdown(selectSize, '-- กรุณาเลือกขนาดก่อน --');
+            resetStockInfo();
+
+            if (selectedType && selectedThickness) {
+                
+                const filteredData = sheetData.filter(item => 
+                    item.type === selectedType && 
+                    String(item.thickness) === selectedThickness // <--- แก้ไข
+                );
+                
+                const sizes = [...new Set(filteredData.map(item => item.size))];
+                selectSize.innerHTML = '<option value="">-- กรุณาเลือก --</option>';
+                sizes.forEach(size => {
+                    if (size) {
+                        const option = document.createElement('option');
+                        option.value = size;
+                        option.textContent = size;
+                        selectSize.appendChild(option);
+                    }
+                });
+                selectSize.disabled = false;
+            }
+        });
+        
+        selectSize.addEventListener('change', () => {
+            if(selectSize.value) {
+                updateStockInfo();
+                inputQuantity.disabled = false;
+                submitButton.disabled = false;
+            } else {
+                resetStockInfo();
+            }
+        });
+        
+        // --- 6. ฟังก์ชันช่วยเหลือ ---
+        function resetDropdown(selectElement, defaultText) {
+            selectElement.innerHTML = `<option value="">${defaultText}</option>`;
+            selectElement.disabled = true;
+        }
+
+        function resetStockInfo() {
+            stockInfoDiv.style.display = 'none';
+            stockCountSpan.textContent = 'N/A';
+            inputQuantity.disabled = true;
+            inputQuantity.value = '1'; 
+            submitButton.disabled = true;
+        }
+        
+        function getCurrentStock() {
+            const selectedType = selectType.value;
+            const selectedThickness = selectThickness.value;
+            const selectedSize = selectSize.value;
+
+            const foundItem = sheetData.find(item => 
+                item.type === selectedType && 
+                String(item.thickness) === selectedThickness && // <--- แก้ไข
+                item.size === selectedSize
+            );
+            return foundItem ? foundItem.stock : 0;
+        }
+
+        function updateStockInfo() {
+             const currentStock = getCurrentStock();
+             stockCountSpan.textContent = currentStock;
+             stockInfoDiv.style.display = 'block';
+        }
+
+        // --- 7. (แก้ปัญหา "Popup ไม่ขึ้น") ---
+        // (เวอร์ชันนี้จะรอฟังคำตอบจาก Server)
+        glassForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); 
+
+            // ดึงข้อมูลจากฟอร์ม
+            const selectedTypeVal = selectType.value;
+            const selectedThicknessVal = selectThickness.value;
+            const selectedSizeVal = selectSize.value;
+            
+            const selectedTypeText = selectType.options[selectType.selectedIndex].text;
+            const selectedThicknessText = selectThickness.options[selectThickness.selectedIndex].text;
+            const selectedSizeText = selectSize.options[selectSize.selectedIndex].text;
+            
+            const quantity = parseInt(inputQuantity.value);
+            
+            const currentStock = getCurrentStock();
+            
+            // 1. ตรวจสอบข้อมูลฝั่ง Client ก่อนส่ง
+            if (quantity <= 0) {
+                 showErrorPopup('กรุณากรอกจำนวนเป็นตัวเลข<br>ที่มากกว่า 0');
+                 return;
+            } 
+            
+            if (quantity > currentStock) {
+                 showErrorPopup(`จำนวนที่กรอก <b>(${quantity} แผ่น)</b><br>
+                    มีมากกว่าสต็อกคงเหลือ <b>(${currentStock} แผ่น)</b>`);
+                 return;
+            }
+            
+            // 2. ถ้าข้อมูลถูกต้อง ให้เริ่มส่งข้อมูลไป GAS
+            submitButton.disabled = true;
+            submitButton.textContent = 'กำลังบันทึก...';
+            formMessage.textContent = 'กำลังติดต่อฐานข้อมูล...';
+
+            const orderData = {
+                type: selectedTypeVal,
+                thickness: selectedThicknessVal,
+                size: selectedSizeVal,
+                quantity: quantity
+            };
+
+            try {
+                // *** นี่คือส่วนที่แก้ไข ***
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    // mode: 'no-cors', // <--- *** ลบบรรทัดนี้ทิ้ง ***
+                    cache: 'no-cache',
+                    redirect: 'follow',
+                    body: JSON.stringify(orderData)
+                });
+
+                // *** เพิ่มส่วนนี้เข้ามา ***
+                // เราจะรออ่าน JSON ที่ GAS ส่งกลับมา
+                const result = await response.json();
+
+                // 3. ตรวจสอบสถานะที่เซิร์ฟเวอร์ส่งกลับมา
+                if (result.status === 'success') {
+                    
+                    // 3a. อัปเดตสต็อกในตัวแปร 'sheetData' (ในหน้าเว็บ)
+                    const foundItem = sheetData.find(item => 
+                        item.type === selectedTypeVal && 
+                        String(item.thickness) === selectedThicknessVal &&
+                        item.size === selectedSizeVal
+                    );
+                    
+                    if (foundItem) {
+                        // ใช้ newStock ที่เซิร์ฟเวอร์ส่งกลับมา (result.newStock) จะแม่นยำกว่า
+                        foundItem.stock = result.newStock; 
+                    }
+
+                    // 3b. แสดง Popup สำเร็จ
+                    const detailsHtml = `
+                        <b>ชนิด:</b> ${selectedTypeText}<br>
+                        <b>ความหนา:</b> ${selectedThicknessText}<br>
+                        <b>ขนาด:</b> ${selectedSizeText}<br>
+                        <b>จำนวน:</b> ${quantity} แผ่น<br>
+                        <hr style="border:0; border-top:1px solid #eee; margin: 8px 0;">
+                        <b>สต็อกคงเหลือ: ${result.newStock} แผ่น</b>
+                    `;
+                    popupDetails.innerHTML = detailsHtml;
+                    successPopup.classList.add('active'); // <--- แสดง Popup สำเร็จ
+
+                    // 3c. รีเซ็ตฟอร์มหลังจากดีเลย์
+                    setTimeout(function() {
+                        successPopup.classList.remove('active');
+                        glassForm.reset();
+                        resetDropdown(selectThickness, '-- กรุณาเลือกชนิดกระจกก่อน --');
+                        resetDropdown(selectSize, '-- กรุณาเลือกความหนาก่อน --');
+                        resetStockInfo();
+                        populateTypeDropdown(); 
+                        selectType.value = "";
+                    }, 1500);
+
+                } else {
+                    // 4. ถ้าเซิร์ฟเวอร์ส่ง "error" กลับมา
+                    // เช่น สต็อกไม่พอ (ที่เช็กใน GAS)
+                    throw new Error(result.message);
+                }
+
+            } catch (error) {
+                // 5. ถ้าเกิดข้อผิดพลาด Network หรือ Error จาก GAS
+                console.error('Error submitting form:', error);
+                // แสดง Error ที่แท้จริง (อาจจะมาจาก 'throw new Error(result.message)' ด้านบน)
+                showErrorPopup(`เกิดข้อผิดพลาด: <br>${error.message}`);
+            
+            } finally {
+                // 6. คืนค่าปุ่ม
+                submitButton.disabled = false;
+                submitButton.textContent = 'ส่งข้อมูล';
+                formMessage.textContent = '(ระบบนี้เชื่อมต่อฐานข้อมูลจริง)';
+            }
+        });
+
+        // ฟังก์ชันช่วยแสดง Error Popup
+        function showErrorPopup(message) {
+            errorDetails.innerHTML = message;
+            errorPopup.classList.add('active');
+            setTimeout(() => {
+                errorPopup.classList.remove('active');
+            }, 1500);
+        }
+
+    </script>
+
+</body>
+</html>
